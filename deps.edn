@@ -17,8 +17,8 @@
   buddy/buddy {:mvn/version "2.0.0"}
 
   ;; ...................................................... db
-  pro.juxt.crux/crux-core {:mvn/version "1.18.1"}
-  pro.juxt.crux/crux-rocksdb {:mvn/version "1.18.1"}
+  com.xtdb/xtdb-core {:mvn/version "1.19.0-beta1"}
+  com.xtdb/xtdb-rocksdb {:mvn/version "1.19.0-beta1"}
   clojurewerkz/quartzite {:mvn/version "2.1.0"}
 
   ;; ...................................................... misc.

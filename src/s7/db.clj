@@ -1,6 +1,6 @@
 (ns s7.db
   (:require
-   [crux.api :as crux]
+   [xtdb.api :as xt]
    [clojure.java.io :as io]
    [malli.core :as m]
 
@@ -31,8 +31,8 @@
   ```"
   {:added "0.1"}
   [x & [pull-syntax]]
-  (let [k (if (v/valid-email? x) :user/email :crux.db/id)]
-    (-> (crux/q (crux/db node_)
+  (let [k (if (v/valid-email? x) :user/email :xt/id)]
+    (-> (xt/q (xt/db node_)
                 {:find [(or pull-syntax '(pull ?user [*]))]
                  :where [['?user k x]]})
         first
@@ -121,12 +121,12 @@
    {schema-name :s7/schema :keys [:s7/data :s7/revoke] :as args}]
   (let [{:keys [form] :as schema} (model/get-schema schema-name)
 
-        new?       (not (get-in args [:s7/data :crux.db/id]))
+        new?       (not (get-in args [:s7/data :xt/id]))
         args-error (or (v/validate valid-put-args args)
                        (and new?
                             revoke
                             "Cannot call revoke when creating new data"))
-        data*      (dissoc data :crux.db/id)
+        data*      (dissoc data :xt/id)
         data-error (v/validate form data*)
         user?      (= schema-name :User)]
 
@@ -181,19 +181,19 @@
       ::else-validated
       nil)))
 
-(defn make-user-perm-keyword
+(defn user-perm-key
   [id]
   (keyword "s7.user-perm" (str "u" id)))
 
 (defn make-doc-perms
   [new?
-   {user-id :crux.db/id user-email :user/email}
+   {user-id :xt/id user-email :user/email}
    schema-name
    doc-id
    doc]
   (let [doc (assoc doc
                    :s7/owner user-id
-                   (make-user-perm-keyword user-id) #{:all})]
+                   (user-perm-key user-id) #{:all})]
     doc))
 
 (defn put
@@ -202,21 +202,20 @@
   [{schema-name :s7/schema
     s7-user :s7/user
     :keys [s7/debug?]
-    {:keys [crux.db/id] :as data} :s7/data
+    {:keys [xt/id] :as data} :s7/data
     :as args}]
 
   (let [event (make-event)
-        user (get-user s7-user '(pull ?user [:crux.db/id :user/email]))]
+        user (get-user s7-user '(pull ?user [:xt/id :user/email]))]
 
     (or (invalidate-put-args event user args)
         (let [new? (not id)
               id   (if new? (util/uuid) id)
-              user (or user {:crux.db/id id :user/email (:user/email data)})
-
+              user (or user {:xt/id id :user/email (:user/email data)})
               doc  (if-not new?
                      data
                      (assoc data
-                            :crux.db/id id
+                            :xt/id id
                             :s7/schema schema-name))
               doc  (make-doc-perms new? user schema-name id doc)
 
@@ -224,7 +223,7 @@
                } (if debug?
                    {:debug? true :doc doc}
                    (try
-                     (crux/submit-tx node_ [[:crux.tx/put doc]])
+                     (xt/submit-tx node_ [[::xt/put doc]])
                      (catch Throwable t
                        {:query-error (.getMessage t)})))]
 
@@ -257,7 +256,7 @@
         args-err (v/validate valid-q-args args)
         user     (and (not args-err)
                       (get-user user-id
-                                '(pull ?user [:crux.db/id :user/email])))]
+                                '(pull ?user [:xt/id :user/email])))]
 
     (cond
       args-err
@@ -279,7 +278,7 @@
       ::else-run-query
       (let [{:keys [query-error] :as r
              } (try
-                 (crux/q (crux/db node_) q)
+                 (xt/q (xt/db node_) q)
 
                  (catch java.lang.NullPointerException e
                    {:query-error (str "Null pointer. Check that the "
@@ -307,10 +306,10 @@
   {:added "0.1"}
   []
   (defonce node_
-    (crux/start-node {:s7/rocksdb {:crux/module 'crux.rocksdb/->kv-store
+    (xt/start-node {:s7/rocksdb {:xtdb/module 'xtdb.rocksdb/->kv-store
                                    :db-dir (io/file "__data")}
-                      :crux/tx-log {:kv-store :s7/rocksdb}
-                      :crux/document-store {:kv-store :s7/rocksdb}})))
+                      :xtdb/tx-log {:kv-store :s7/rocksdb}
+                      :xtdb/document-store {:kv-store :s7/rocksdb}})))
 
 (defn stop-db
   ""

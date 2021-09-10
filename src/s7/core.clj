@@ -1,6 +1,6 @@
 (ns s7.core
   (:require
-   [crux.api :as crux]
+   [xtdb.api :as xt]
 
    [s7.config :as config]
    [s7.model :as model]
